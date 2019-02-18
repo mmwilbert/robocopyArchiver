@@ -1,0 +1,45 @@
+[
+    {
+        "description": "filename",
+        "mode": "REQUIRED",
+        "name": "filename",
+        "type": "STRING"
+    },
+    {
+        "description": "file_size_in_bytes",
+        "mode": "REQUIRED",
+        "name": "size",
+        "type": "INT64"
+    },
+    {
+        "description": "file_record_type",
+        "mode": "REQUIRED",
+        "name": "type",
+        "type": "STRING"
+    },
+    {
+        "description": "error",
+        "mode": "NULLABLE",
+        "name": "error",
+        "type": "STRING"
+    },
+    {
+        "description": "error_string",
+        "mode": "NULLABLE",
+        "name": "errorcode",
+        "type": "STRING"
+    },
+    {
+        "description": "error_code",
+        "mode": "NULLABLE",
+        "name": "errorcord",
+        "type": "STRING"
+    },
+    {
+        "description": "backup_start_date",
+        "mode": "REQUIRED",
+        "name": "backupdate",
+        "type": "TIMESTAMP"
+    }
+]
+        

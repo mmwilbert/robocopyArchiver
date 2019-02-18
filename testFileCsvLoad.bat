@@ -1,0 +1,1 @@
+bq load --skip_leading_rows=1 --source_format=CSV robocopy.test1 y:\r_HSIP.log_files.csv fileTableSchema.json

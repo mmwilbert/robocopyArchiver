@@ -6,9 +6,10 @@ import sys
 import csv
 import traceback
 
+#newFileRe = re.compile(r"\\s+([^\s][0-9\s\.mg]+)\s(?:[^\n\r]+)")
 newFileRe = re.compile(r"\s+New File\s+([^\s][0-9\s\.mg]+)\s([^\n\r]+)")
 #newFileRe = re.compile(r"\s+New File\s+([^\s].*)")
-#errorRe = re.compile(r"([0-9/\s\:]\sERROR ([0-9]+)\s(.*))")
+#errorRe = re.compile(r"([0-9/\s\:]\sERROR ([0-9]+)\s(.*))$")
 ignoreRe = re.compile(r"""(?:[\s]+$)|  #blank
                         (?:\-+[\r]$)| #hyphens
                         (?:\s+ROBOCOPY\s+\:\:.*$)| #ROBOCOPY header
@@ -51,7 +52,7 @@ endedRe = re.compile(r"\s+Ended\s+\:\s+.*?\,\s+(.*(?:AM|PM)).*")
 def convertRobocopyDateToBQFormat(datestring):
     datestring = datestring.strip()
     d = datetime.datetime.strptime(datestring,"%B %d, %Y %H:%M:%S %p")
-    return d.strftime("%Y-%B-%d %H:%M:%S")
+    return d.strftime("%Y-%m-%d %H:%M:%S")
 
 def getSizeFromRobosize(robosizeString):
     sizeStrings = robosizeString.strip().split(" ")
@@ -92,9 +93,9 @@ class robocopyLogConverter(object):
 
 
 
-        self.fileCsvWriter = csv.DictWriter(filecsv,self.fileCsvFields,restval="")
+        self.fileCsvWriter = csv.DictWriter(filecsv,self.fileCsvFields,restval="",lineterminator='\n')
         self.fileCsvWriter.writeheader()
-        self.metaCsvWriter = csv.DictWriter(metacsv,self.metaCsvFields,restval="")
+        self.metaCsvWriter = csv.DictWriter(metacsv,self.metaCsvFields,restval="",lineterminator='n')
         self.metaCsvWriter.writeheader()
         
         
@@ -126,15 +127,14 @@ class robocopyLogConverter(object):
 
     def errorReHandler(self,matchObject):
         print("**********************errorhandler********************")
-        self.currentFileRecordDict['ErrorCode'] = matchObject.group(1)
-        self.currentFileRecordDict['Error'] = matchObject.group(2)
+        self.currentFileRecordDict['ErrorString'] = matchObject.group(1).strip()
+        self.currentFileRecordDict['ErrorCode'] = matchObject.group(2).strip()
+        pprint(self.currentFileRecordDict)
         return
     
 
     def ignoreReHandler(self,matchObject):
         print ("ignored line found")
-        if self.currentFileRecordDict:
-            self.writeFileRecord()
 
     def dividerReHandler(self,matchObject):
         print ("divider found")
@@ -204,14 +204,21 @@ class robocopyLogConverter(object):
 
     def endedReHandler(self,matchObject):
         print ("ended handler")
+        if self.currentFileRecordDict:
+            self.writeFileRecord()
         self.backupMetadataDict['Ended'] = convertRobocopyDateToBQFormat(matchObject.group(1))
         self.writeBackupMetadata()
 
     def newFileHandler(self,matchObject):
         if self.currentFileRecordDict:
             self.writeFileRecord()
-        self.currentFileRecordDict['Type'] = "New"
-        self.currentFileRecordDict['Filename'] = matchObject.group(2).strip()
+        filename = matchObject.group(2).strip()
+        if filename[-11:] == "Retrying...":
+            self.currentFileRecordDict['Filename'] = filename[:-12]
+            self.currentFileRecordDict['Type'] = "Retry"
+        else:
+            self.currentFileRecordDict['Filename'] = filename
+            self.currentFileRecordDict['Type'] = "New"
         self.currentFileRecordDict['Size'] = getSizeFromRobosize(matchObject.group(1).strip())
         self.currentFileRecordDict['BackupStartDate'] = self.backupMetadataDict['Started']
         #print(self.currentFileRecordDict)
@@ -230,18 +237,21 @@ class robocopyLogConverter(object):
         print ("done with handlers")
         if not rlc.lineMatched:
             if rlc.currentFileRecordDict.get('ErrorCode'):
-                #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^setting ErrorString^^^^^^^^^^^^^^^^^^")
-                if rlc.currentFileRecordDict.get('ErrorString'):
-                    rlc.currentFileRecordDict['ErrorString'] = rlc.currentFileRecordDict['ErrorString'] + line
+                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^setting ErrorString^^^^^^^^^^^^^^^^^^")
+                if rlc.currentFileRecordDict.get('Error'):
+                    rlc.currentFileRecordDict['Error'] = rlc.currentFileRecordDict['Error'] + line.strip()
                 else:
-                    rlc.currentFileRecordDict['ErrorString'] = line
+                    rlc.currentFileRecordDict['Error'] = line.strip()
             else:
                 print("No match:" + line)
+            pprint(rlc.currentFileRecordDict)
+
         
     def writeFileRecord(self):
         stripDictStrings(self.currentFileRecordDict)
         self.currentFileRecordDict['BackupStartDate'] = self.backupMetadataDict['Started']
-        #pprint(self.currentFileRecordDict)
+        print("^^^^^^^^^^^^^^writing file record^^^^^^^^^^^^^^^^^^^^^^^^")
+        pprint(self.currentFileRecordDict)
         self.fileCsvWriter.writerow(self.currentFileRecordDict)
         self.currentFileRecordDict = {}
 
@@ -319,6 +329,6 @@ alldirs.sort()
 for clientproject in alldirs:
     print (clientproject[0],'\t',clientproject[1],'\t',datadict[clientproject][0],'\t',
            datadict[clientproject][1],'\t',datadict[clientproject][2])
-#pprint.pprint (recentcount)
-#pprint.pprint (totalcount)
+    #pprint.pprint (recentcount)#
+    pprint.pprint (totalcount)
     
